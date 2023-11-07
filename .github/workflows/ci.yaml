@@ -86,9 +86,9 @@ jobs:
           apt install docker-ce -y
       - name: Check out code
         uses: actions/checkout@v2
-      - uses: actions/setup-go@v1
+      - uses: actions/setup-go@v4
         with:
-          go-version: 1.20.5
+          go-version: 1.20.8
 
       # Use buildx to build for two platforms (amd64, arm64) in one image
       - name: Docker Build
