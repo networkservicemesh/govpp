@@ -1,8 +1,8 @@
 #!/bin/bash
 set -ex
 
-git config --global user.name "John Doe"
-git config --global user.email "johndoe@example.com"
+git config user.name "John Doe"
+git config user.email "johndoe@example.com"
 
 function git_cherry_pick ()
 {
@@ -15,6 +15,7 @@ function git_cherry_pick ()
 # NSM cherry picks
 git_cherry_pick refs/changes/03/39503/1 # 39503: vppinfra: fix setns typo | https://gerrit.fd.io/r/c/vpp/+/39503
 git_cherry_pick refs/changes/28/39528/9 # 39528: ping: Simple binary API for running ping based on events | https://gerrit.fd.io/r/c/vpp/+/39528
+git_cherry_pick refs/changes/24/39824/1 # 39824: af_packet: remove UNIX_FILE_EVENT_EDGE_TRIGGERED flag | https://gerrit.fd.io/r/c/vpp/+/39824
 
 # Calico cherry picks
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
