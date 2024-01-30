@@ -17,7 +17,7 @@ git_cherry_pick refs/changes/03/39503/1 # 39503: vppinfra: fix setns typo | http
 git_cherry_pick refs/changes/28/39528/9 # 39528: ping: Simple binary API for running ping based on events | https://gerrit.fd.io/r/c/vpp/+/39528
 git_cherry_pick refs/changes/24/39824/1 # 39824: af_packet: remove UNIX_FILE_EVENT_EDGE_TRIGGERED flag | https://gerrit.fd.io/r/c/vpp/+/39824
 git_cherry_pick refs/changes/19/40119/1 # 40119: af_packet: set next0 for AF_PACKET_IF_MODE_ETHERNET mode | https://gerrit.fd.io/r/c/vpp/+/40119
-
+git_cherry_pick refs/changes/46/40246/9 # 40246: ping: Check only PING_RESPONSE_IP4 and PING_RESPONSE_IP6 events | https://gerrit.fd.io/r/c/vpp/+/40246
 # Calico cherry picks
 git_cherry_pick refs/changes/26/34726/3 # 34726: interface: add buffer stats api | https://gerrit.fd.io/r/c/vpp/+/34726
 
