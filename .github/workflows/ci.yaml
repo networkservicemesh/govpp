@@ -129,6 +129,13 @@ jobs:
           docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/${{github.repository}}/vpp:${TAG} . --target vpp --push
           docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/${{github.repository}}/vpp-dbg:${TAG} . --target vpp-dbg --push
           echo docker_tag=${TAG} >> $GITHUB_OUTPUT
+      - name: Push tag ${TAG}
+        id: tag_commit
+        if: steps.docker_push.outcome == 'success'
+        run: |
+          git status
+          git tag ${TAG} ${{github.sha}}
+          git push origin ${TAG} -f
 
   delete_github_runner:
     name: Delete actions runner
