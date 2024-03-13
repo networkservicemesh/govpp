@@ -12,6 +12,9 @@ on:
     paths-ignore:
       - '**.md'
 jobs:
+  gogenerate:
+    uses: networkservicemesh/.github/.github/workflows/govpp-gogenerate.yaml@main
+
   setup_github_runner:
     name: Setup actions runner
     runs-on: ubuntu-latest
