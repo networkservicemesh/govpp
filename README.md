@@ -58,3 +58,13 @@ Change the version of [govpp in the go.mod file](https://github.com/edwarnicke/g
 ## How the magic works ##
 
 See [How the Magic Works](https://github.com/edwarnicke/govpp/issues/16).
+
+## How to update VPP
+1. Find a commit SHA of the VPP version you want to use
+2. Replace [the old commit SHA](https://github.com/networkservicemesh/govpp/blob/main/Dockerfile#L1C17-L1C57) with the new commit SHA
+3. Build a new `govpp` image with `docker build . -t ${YOUR_GOVPP_IMAGE_TAG} --target vpp`
+4. Run `go generate ./...` to generate new `binapi` files
+5. Open a `cmd-repo` you want to update
+6. In `Dockerfile`: replace `govpp` image everywhere with the image you've built on the step 3 (for example, in `cmd-forwarder-vpp` [here](https://github.com/networkservicemesh/cmd-forwarder-vpp/blob/main/Dockerfile#L2) and [here](https://github.com/networkservicemesh/cmd-forwarder-vpp/blob/main/Dockerfile#L35))
+7. In `go.mod`: replace `github.com/networkservicemesh/govpp` with `govpp` version which uses newly generated `binapi` files (from the step 4)
+8. Build a new `cmd-repo` image
