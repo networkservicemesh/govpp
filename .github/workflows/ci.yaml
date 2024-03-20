@@ -28,7 +28,7 @@ jobs:
           path: ${{ github.repository }}
       - name: Install metal CLI
         run: |
-          curl -L https://github.com/equinix/metal-cli/releases/download/v0.15.0/metal-linux-amd64 -o metal
+          curl -L https://github.com/equinix/metal-cli/releases/download/v0.22.0/metal-linux-amd64 -o metal
           chmod +x ./metal
           mv ./metal /usr/local/bin/metal
           metal -v
@@ -146,7 +146,7 @@ jobs:
           path: ${{ github.repository }}
       - name: Install metal CLI
         run: |
-          curl -L https://github.com/equinix/metal-cli/releases/download/v0.15.0/metal-linux-amd64 -o metal
+          curl -L https://github.com/equinix/metal-cli/releases/download/v0.22.0/metal-linux-amd64 -o metal
           chmod +x ./metal
           mv ./metal /usr/local/bin/metal
           metal -v
