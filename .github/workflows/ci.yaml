@@ -104,11 +104,6 @@ jobs:
           VPP_VERSION=$(docker run vpp:version)
           TAG=v${VPP_VERSION/\~/-}
           echo "TAG=${TAG}" >> $GITHUB_ENV
-      - name: Generate files
-        run: go generate ./...
-      - name: Check for changes in generated code
-        run: |
-          git diff -- binapi || (echo "Rerun go generate ./... locally and resubmit" && exit -1)
       - name: Go Build
         run: go build ./...
 
@@ -130,10 +125,26 @@ jobs:
           docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/${{github.repository}}/vpp-dbg:${TAG} . --target vpp-dbg --push
           echo docker_tag=${TAG} >> $GITHUB_OUTPUT
 
+  gogenerate:
+    name: Check generated files
+    needs: build
+    runs-on: self-hosted
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - uses: actions/setup-go@v4
+        with:
+          go-version: 1.20.8
+      - name: Generate files
+        run: go generate ./...
+      - name: Check for changes in generated code
+        run: |
+          git diff --name-only --exit-code -- binapi || (echo "Rerun go generate ./... locally and resubmit" && false )
+
   delete_github_runner:
     name: Delete actions runner
     if: ${{ always() }}
-    needs: [setup_github_runner, build]
+    needs: [setup_github_runner, build, gogenerate]
     runs-on: ubuntu-latest
     env:
       METAL_AUTH_TOKEN: ${{ secrets.PACKET_AUTH_TOKEN }}
