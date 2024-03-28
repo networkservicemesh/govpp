@@ -62,6 +62,7 @@ jobs:
       - name: Update ${{ matrix.repository }} locally
         working-directory: networkservicemesh/${{ matrix.repository }}
         run: |
+          set +e
           has_dep=$(grep "github.com/${{ github.repository }}" go.mod | grep -v "// indirect" -c)
           if [ "$has_dep" -eq 0 ]; then
             echo "${{ matrix.repository }} repo doesn't have ${{ github.repository }} dependency"
