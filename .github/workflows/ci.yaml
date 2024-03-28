@@ -101,8 +101,15 @@ jobs:
           docker buildx build --platform linux/amd64,linux/arm64 .
 
           docker buildx build -t vpp:version --target version --load .
-          VPP_VERSION=$(docker run vpp:version)
-          TAG=v${VPP_VERSION/\~/-}
+
+          branch=${{github.event.workflow_run.head_branch}}
+          if [[ $branch == *release/* ]]; then
+            TAG=${branch#release/}
+          else
+            VPP_VERSION=$(docker run vpp:version)
+            TAG=v${VPP_VERSION/\~/-}
+          fi
+
           echo "TAG=${TAG}" >> $GITHUB_ENV
       - name: Generate files
         run: go generate ./...
@@ -127,8 +134,15 @@ jobs:
         if: steps.docker_login.outcome == 'success'
         run: |
           docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/${{github.repository}}/vpp:${TAG} . --target vpp --push
-          docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/${{github.repository}}/vpp-dbg:${TAG} . --target vpp-dbg --push
           echo docker_tag=${TAG} >> $GITHUB_OUTPUT
+
+      - name: Push tag ${TAG}
+        id: tag_commit
+        if: ${{ steps.docker_push.outcome == 'success' && !contains(github.event.workflow_run.head_branch, 'release/') }}
+        run: |
+          git status
+          git tag ${TAG} ${{github.sha}}
+          git push origin ${TAG} -f
 
   delete_github_runner:
     name: Delete actions runner
@@ -178,6 +192,20 @@ jobs:
           export ssh_label=$SERVER_NAME-ssh
           ssh_id=$(metal ssh-key get -o json | jq -r '.[] | select(.label==env.ssh_label) | .id')
           metal ssh-key delete -i $ssh_id -f
+
+  check-gomod-deps:
+    needs: [build]
+    if: ${{ contains(github.event.workflow_run.head_branch, 'release/') }}
+    uses: networkservicemesh/.github/.github/workflows/check-gomod-deps.yaml@main
+    with:
+      tag: ${{ needs.build.outputs.docker_tag }}
+
+  create-release:
+    needs: check-gomod-deps
+    if: ${{ contains(github.event.workflow_run.head_branch, 'release/') }}
+    uses: networkservicemesh/.github/.github/workflows/release.yaml@main
+    secrets:
+      token: ${{ secrets.NSM_BOT_GITHUB_TOKEN }}
 
   update_dependent_repositories:
     name: update_dependent_repositories
