@@ -115,7 +115,7 @@ jobs:
         run: go generate ./...
       - name: Check for changes in generated code
         run: |
-          git diff -- binapi || (echo "Rerun go generate ./... locally and resubmit" && exit -1)
+          git diff --name-only --exit-code -- binapi || (echo "Rerun go generate ./... locally and resubmit" && false )
       - name: Go Build
         run: go build ./...
 
