@@ -1,5 +1,5 @@
 ARG VPP_VERSION=1765f014bc7fcc3b924019ec96350eb50bef629f
-ARG UBUNTU_VERSION=20.04
+ARG UBUNTU_VERSION=24.10
 ARG GOVPP_VERSION=v0.8.0
 
 FROM ubuntu:${UBUNTU_VERSION} as vppbuild
@@ -34,14 +34,14 @@ COPY --from=vppbuild ["/vpp/build-root/libvppinfra-dev_*.deb", "/vpp/build-root/
 RUN VPP_INSTALL_SKIP_SYSCTL=false apt install -f -y --no-install-recommends ./*.deb
 
 
-FROM golang:1.20.5-alpine3.18 as binapi-generator
+FROM golang:1.23.1-alpine3.20 as binapi-generator
 ENV GO111MODULE=on
 ENV CGO_ENABLED=0
 ENV GOBIN=/bin
 ARG GOVPP_VERSION
 RUN go install go.fd.io/govpp/cmd/binapi-generator@${GOVPP_VERSION}
 
-FROM alpine:3.18 as gen
+FROM alpine:3.20 as gen
 COPY --from=vpp /usr/share/vpp/api/ /usr/share/vpp/api/
 COPY --from=binapi-generator /bin/binapi-generator /bin/binapi-generator
 COPY --from=vppbuild /vpp/VPP_VERSION /VPP_VERSION
