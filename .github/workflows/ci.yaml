@@ -28,18 +28,22 @@ jobs:
           path: ${{ github.repository }}
       - name: Install metal CLI
         run: |
-          curl -L https://github.com/equinix/metal-cli/releases/download/v0.15.0/metal-linux-amd64 -o metal
+          curl -L https://github.com/equinix/metal-cli/releases/download/v0.22.0/metal-linux-amd64 -o metal
           chmod +x ./metal
           mv ./metal /usr/local/bin/metal
           metal -v
       # Setup ssh to be able to connect to the Packet server
       - name: Setup ssh
+        working-directory: ${{ github.repository }}
         id: setup_ssh
         run: |
-          echo "${{ secrets.PACKET_SSH_KEY }}" > /tmp/sshkey
-          chmod 600 /tmp/sshkey
-          ssh-keygen -f /tmp/sshkey -y > /tmp/sshkey.pub
-          metal ssh-key create --key "$(cat /tmp/sshkey.pub)" --label $SERVER_NAME-ssh -o json | jq -r '.id'
+          ssh-keygen -t rsa -f /tmp/sshkey -q -N ""
+          eval `ssh-agent -s`
+          ssh-add /tmp/sshkey
+          ssh_id=$(metal ssh-key create --key "$(cat /tmp/sshkey.pub)" --label ${SSH_KEY} -o json | jq -r '.id')
+          echo ssh_id=${ssh_id} >> $GITHUB_OUTPUT
+        env:
+          METAL_AUTH_TOKEN: ${{ secrets.PACKET_AUTH_TOKEN }}
 
       # Create server and wait to be ready
       - name: Create server
