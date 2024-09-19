@@ -41,7 +41,7 @@ ENV GOBIN=/bin
 ARG GOVPP_VERSION
 RUN go install go.fd.io/govpp/cmd/binapi-generator@${GOVPP_VERSION}
 
-FROM alpine:3.18 as gen
+FROM alpine:3.20 as gen
 COPY --from=vpp /usr/share/vpp/api/ /usr/share/vpp/api/
 COPY --from=binapi-generator /bin/binapi-generator /bin/binapi-generator
 COPY --from=vppbuild /vpp/VPP_VERSION /VPP_VERSION
