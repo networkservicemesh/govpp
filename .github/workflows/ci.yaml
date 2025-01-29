@@ -12,93 +12,115 @@ on:
     paths-ignore:
       - '**.md'
 jobs:
-  setup_github_runner:
-    name: Setup actions runner
+  yamllint:
+    name: yamllint
     runs-on: ubuntu-latest
-    env:
-      METAL_AUTH_TOKEN: ${{ secrets.PACKET_AUTH_TOKEN }}
-      METAL_PROJECT_ID: ${{ secrets.PACKET_PROJECT_ID }}
-      SERVER_NAME: "nsm-govpp-builder"
-      SERVER_TYPE: "c3.medium.x86"
-      METRO: da
     steps:
-      - name: Check out code
+      - name: Check out code into the Go module directory
         uses: actions/checkout@v2
+      - name: yaml-lint
+        uses: ibiqlik/action-yamllint@v1
         with:
-          path: ${{ github.repository }}
-      - name: Install metal CLI
-        run: |
-          curl -L https://github.com/equinix/metal-cli/releases/download/v0.15.0/metal-linux-amd64 -o metal
-          chmod +x ./metal
-          mv ./metal /usr/local/bin/metal
-          metal -v
-      # Setup ssh to be able to connect to the Packet server
-      - name: Setup ssh
-        id: setup_ssh
-        run: |
-          echo "${{ secrets.PACKET_SSH_KEY }}" > /tmp/sshkey
-          chmod 600 /tmp/sshkey
-          ssh-keygen -f /tmp/sshkey -y > /tmp/sshkey.pub
-          metal ssh-key create --key "$(cat /tmp/sshkey.pub)" --label $SERVER_NAME-ssh -o json | jq -r '.id'
-
-      # Create server and wait to be ready
-      - name: Create server
-        run: |
-          metal device create -p $METAL_PROJECT_ID -P $SERVER_TYPE -m $METRO -H $SERVER_NAME -O ubuntu_20_04
-          max_retry=20
-          for i in $(seq 1 $max_retry); do
-            state=$(metal device get -p $METAL_PROJECT_ID -o json | jq -r '.[] | select(.hostname==env.SERVER_NAME) | .state')
-            [ "$state" == "active" ] && break
-            [[ ${i} -eq $max_retry ]] && echo "Failed!" && exit 1
-            sleep 30s
-            echo "Try #$i"
-          done
-      # Install GitHub action runner on the Packet server. The script uses RUNNER_TOKEN that we can get from GitHub api (gh api ...)
-      # Redirect the script output to file to not show the token
-      - name: Setup actions runner
-        working-directory: ${{ github.repository }}
-        run: |
-          RUNNER_TOKEN=$(gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            /repos/networkservicemesh/govpp/actions/runners/registration-token | jq -r '.token')
-
-          SSH_OPTS="-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i /tmp/sshkey"
-          server_ip=$(metal device get -p $METAL_PROJECT_ID -o json | jq -r '.[] | select(.hostname==env.SERVER_NAME) | .ip_addresses[] | select(.public==true and .address_family==4) | .address')
-          scp ${SSH_OPTS} scripts/setup-actions-runner.sh root@${server_ip}:setup-actions-runner.sh
-          ssh ${SSH_OPTS} root@${server_ip} "./setup-actions-runner.sh $RUNNER_TOKEN &> f.log"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-
+          config_file: .ci/yamllint.yml
+          strict: true
   build:
     name: build
-    needs: setup_github_runner
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     outputs:
       docker_tag: ${{ steps.docker_push.outputs.docker_tag }}
     steps:
-      - name: Docker install
-        run: |
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-          add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
-          apt update
-          apt install docker-ce -y
       - name: Check out code
         uses: actions/checkout@v2
       - uses: actions/setup-go@v4
         with:
           go-version: 1.20.8
-
-      # Use buildx to build for two platforms (amd64, arm64) in one image
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@v1.0
+        with:
+          swap-size-gb: 4
+      - name: Memory usage
+        run: free -m
+      - name: List installed packages
+        run: dpkg -la
+      - name: Free Disk Space for Docker
+        run: |
+          df -h
+          sudo apt-get remove aria2 azure-cli shellcheck rpm xorriso zsync \
+               clang-16 lld-16 clang-format-16 \
+               clang-17 lld-17 clang-format-17 \
+               g++-9 g++-10 g++-12 g++-11 \
+               gfortran-9 gfortran-10 gfortran-11 google-chrome-stable \
+               google-cloud-sdk \
+               imagemagick \
+               libmagickcore-dev libmagickwand-dev libmagic-dev ant \
+               ant-optional mercurial apt-transport-https mono-complete \
+               mysql-client libmysqlclient-dev \
+               mysql-server unixodbc-dev yarn libssl-dev \
+               libfreetype6 libfreetype6-dev libfontconfig1 libfontconfig1-dev \
+               php-common \
+               php-pear \
+               php8.3 \
+               php8.3-amqp \
+               php8.3-apcu \
+               php8.3-bcmath \
+               php8.3-bz2 \
+               php8.3-cgi \
+               php8.3-cli \
+               php8.3-common \
+               php8.3-curl \
+               php8.3-dba \
+               php8.3-dev \
+               php8.3-enchant \
+               php8.3-fpm \
+               php8.3-gd \
+               php8.3-gmp \
+               php8.3-igbinary \
+               php8.3-imagick \
+               php8.3-imap \
+               php8.3-interbase \
+               php8.3-intl \
+               php8.3-ldap \
+               php8.3-mbstring \
+               php8.3-memcache \
+               php8.3-memcached \
+               php8.3-mongodb \
+               php8.3-msgpack \
+               php8.3-mysql \
+               php8.3-odbc \
+               php8.3-opcache \
+               php8.3-pcov \
+               php8.3-pgsql \
+               php8.3-phpdbg \
+               php8.3-pspell \
+               php8.3-readline \
+               php8.3-redis \
+               php8.3-snmp \
+               php8.3-soap \
+               php8.3-sqlite3 \
+               php8.3-sybase \
+               php8.3-tidy \
+               php8.3-xdebug \
+               php8.3-xml \
+               php8.3-xsl \
+               php8.3-yaml \
+               php8.3-zip \
+               php8.3-zmq \
+               snmp pollinate libpq-dev powershell ruby-full nginx shim-signed \
+               libnginx-mod-http-image-filter libmono-system-web4.0-cil \
+               monodoc-http \
+               sphinxsearch subversion -yq --allow-remove-essential
+          sudo apt-get autoremove -y
+          sudo apt-get autoclean -y
+          sudo rm -rf /usr/local/lib/android
+          sudo apt clean
+          if [ -n "$(docker images -aq)" ]; then \
+            docker rmi -f $(docker images -aq)
+          fi
+          df -h
       - name: Docker Build
         run: |
-          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-          docker buildx create --use --bootstrap
-          echo "docker buildx inspect --bootstrap"
-          docker buildx inspect --bootstrap
-          echo "docker buildx build --platform linux/amd64,linux/arm64 ."
-          docker buildx build --platform linux/amd64,linux/arm64 .
+          echo "docker buildx build ."
+          docker buildx build .
 
           docker buildx build -t vpp:version --target version --load .
 
@@ -118,7 +140,6 @@ jobs:
           git diff -- binapi || (echo "Rerun go generate ./... locally and resubmit" && exit -1)
       - name: Go Build
         run: go build ./...
-
       - name: Login to GitHub Container Registry
         id: docker_login
         if: ${{ github.event_name == 'push' }}
@@ -133,65 +154,9 @@ jobs:
         id: docker_push
         if: steps.docker_login.outcome == 'success'
         run: |
-          docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/${{github.repository}}/vpp:${TAG} . --target vpp --push
+          docker buildx build -t ghcr.io/${{github.repository}}/vpp:${TAG} . --target vpp --push
+          docker buildx build -t ghcr.io/${{github.repository}}/vpp-dbg:${TAG} . --target vpp-dbg --push
           echo docker_tag=${TAG} >> $GITHUB_OUTPUT
-
-      - name: Push tag ${TAG}
-        id: tag_commit
-        if: ${{ steps.docker_push.outcome == 'success' && !contains(github.event.workflow_run.head_branch, 'release/') }}
-        run: |
-          git status
-          git tag ${TAG} ${{github.sha}}
-          git push origin ${TAG} -f
-
-  delete_github_runner:
-    name: Delete actions runner
-    if: ${{ always() }}
-    needs: [setup_github_runner, build]
-    runs-on: ubuntu-latest
-    env:
-      METAL_AUTH_TOKEN: ${{ secrets.PACKET_AUTH_TOKEN }}
-      METAL_PROJECT_ID: ${{ secrets.PACKET_PROJECT_ID }}
-      SERVER_NAME: "nsm-govpp-builder"
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-        with:
-          path: ${{ github.repository }}
-      - name: Install metal CLI
-        run: |
-          curl -L https://github.com/equinix/metal-cli/releases/download/v0.15.0/metal-linux-amd64 -o metal
-          chmod +x ./metal
-          mv ./metal /usr/local/bin/metal
-          metal -v
-
-      # Delete GitHub action runner from the Packet server
-      - name: Delete actions runner
-        working-directory: ${{ github.repository }}
-        run: |
-          RUNNER_TOKEN=$(gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            /repos/networkservicemesh/govpp/actions/runners/remove-token | jq -r '.token')
-
-          echo "${{ secrets.PACKET_SSH_KEY }}" > /tmp/sshkey
-          chmod 600 /tmp/sshkey
-          SSH_OPTS="-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i /tmp/sshkey"
-          server_ip=$(metal device get -p $METAL_PROJECT_ID -o json | jq -r '.[] | select(.hostname==env.SERVER_NAME) | .ip_addresses[] | select(.public==true and .address_family==4) | .address')
-          scp ${SSH_OPTS} scripts/delete-actions-runner.sh root@${server_ip}:delete-actions-runner.sh
-          ssh ${SSH_OPTS} root@${server_ip} "./delete-actions-runner.sh $RUNNER_TOKEN &> f.log"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-      - name: Delete server
-        run: |
-          device_id=$(metal device get -p $METAL_PROJECT_ID -o json | jq -r '.[] | select(.hostname==env.SERVER_NAME) | .id')
-          metal device delete -i $device_id -f
-      - name: Delete ssh
-        run: |
-          export ssh_label=$SERVER_NAME-ssh
-          ssh_id=$(metal ssh-key get -o json | jq -r '.[] | select(.label==env.ssh_label) | .id')
-          metal ssh-key delete -i $ssh_id -f
 
   check-gomod-deps:
     needs: [build]
